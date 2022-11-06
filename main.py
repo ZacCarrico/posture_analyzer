@@ -1,7 +1,6 @@
 import os
 import tempfile
 import numpy as np
-import functions_framework
 from matplotlib import pyplot as plt
 from gluoncv import model_zoo, data, utils
 from gluoncv.data.transforms.pose import detector_to_simple_pose, heatmap_to_coord
