@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "cloud_event_example"
+name = "posture_analyzer"
 version = "0.1.0"
 description = ""
 authors = ["ZacCarrico <z.carrico@gmail.com>"]
