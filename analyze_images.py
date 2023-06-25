@@ -10,6 +10,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if os.path.isdir(args.path):
+        print("keeps running because it's assuming pictures are constantly being added")
         while True:
             files = [
                 os.path.join(args.path, f)
