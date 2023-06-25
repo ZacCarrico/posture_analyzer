@@ -53,10 +53,11 @@ class PoseAnalyzer:
             keypoint_thresh=0.2,
         )
         img_path = Path(self.img_path)
-        plt.savefig(
-            f"analyzed_imgs/{img_path.name.split('.')[0]}_angle{self.calc_nose_shoulders_hips_angle(predicted_feature_coords)}.jpg"
-        )
+        angle = self.calc_spine_nose_angle(predicted_feature_coords)
+        plt.savefig(f"analyzed_imgs/{img_path.name.split('.')[0]}_angle{angle}.jpg")
         plt.close()
+        with open("results.psv", "a") as f:
+            f.write(str(img_path.name) + str(angle) + "\n")
         img_path.rename(f"analyzed_imgs/{img_path.name}")
 
     def predict_feature_coords(self) -> np.ndarray:
@@ -121,8 +122,9 @@ class PoseAnalyzer:
         return np.degrees(angle).astype(int)
 
     @staticmethod
-    def calc_nose_shoulders_hips_angle(pred_coords: np.ndarray) -> int:
-        """This works best when the camera is at mid-torso height"""
+    def calc_spine_nose_angle(pred_coords: np.ndarray) -> int:
+        """assumes that the camera is level to create a 3rd point with the x value
+        of the nose and y value of the shoulder"""
         left_shoulder_coords = pred_coords[LEFT_SHOULDER_IDX]
         right_shoulder_coords = pred_coords[RIGHT_SHOULDER_IDX]
         left_hip_coords = pred_coords[LEFT_HIP_IDX]
