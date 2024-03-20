@@ -1,5 +1,6 @@
 import argparse
 import os
+import gc
 import time
 from main import PoseAnalyzer
 
@@ -18,7 +19,10 @@ if __name__ == "__main__":
                 if os.path.isfile(os.path.join(args.path, f))
             ]
             for file in files:
-                PoseAnalyzer(file).save_analyzed_image()
+                pa = PoseAnalyzer(file)
+                pa.save_analyzed_image()
+                del pa
+                gc.collect()
             time.sleep(0.1)
 
     else:
