@@ -1,10 +1,12 @@
 import os
-import tempfile
+import time
+import subprocess
 import numpy as np
+import pathlib
 from matplotlib import pyplot as plt
 from gluoncv import model_zoo, data, utils
 from gluoncv.data.transforms.pose import detector_to_simple_pose, heatmap_to_coord
-import logging
+from pathlib import Path
 
 
 NOSE_IDX = 0
@@ -14,29 +16,49 @@ RIGHT_HIP_IDX = 11
 LEFT_HIP_IDX = 12
 CONFIDENCE_THRESHOLD = 0.15
 
+MIN_GOOD_POSTURE_ANGLE = 130
+
 
 class PoseAnalyzer:
-
     def __init__(self, img_path: str):
-        self.img_path = img_path
+        self.img_path = Path(img_path)
 
     def save_analyzed_image(self) -> None:
         """Analyzes image and saves it with angle added to img_path"""
         predicted_feature_coords = self.predict_feature_coords()
 
+        # this is to prevent having to continually use the `self.` prefix
+        img_path = self.img_path
+
+        file_dir_path = pathlib.Path(__file__).parent.resolve()
+
         # unfortunately this try/except is necessary b/c mxnet.ndarray's can't be compared to None
         try:
             if not predicted_feature_coords:
+                failed_analysis_path = os.path.join(str(file_dir_path), "non_analyzed_imgs/failed_analysis__to_be_investigated", img_path.name)
+                img_path.rename(failed_analysis_path)
                 return None
         except:
             pass
 
-        idxs = [NOSE_IDX, RIGHT_SHOULDER_IDX, LEFT_SHOULDER_IDX, RIGHT_HIP_IDX, LEFT_HIP_IDX]
-        confidences = [confidence for i, confidence in enumerate(self.confidence[0]) if i in idxs]
+        idxs = [
+            NOSE_IDX,
+            RIGHT_SHOULDER_IDX,
+            LEFT_SHOULDER_IDX,
+            RIGHT_HIP_IDX,
+            LEFT_HIP_IDX,
+        ]
+        confidences = [
+            confidence for i, confidence in enumerate(self.confidence[0]) if i in idxs
+        ]
+
+
         if any(confidence < CONFIDENCE_THRESHOLD for confidence in confidences):
             print(f"confidence < {CONFIDENCE_THRESHOLD}")
             print(confidences)
-            return
+            low_confidence_path = os.path.join(str(file_dir_path), "analyzed_imgs/low_confidence", img_path.name)
+            img_path.rename(low_confidence_path)
+            return None
 
         utils.viz.plot_keypoints(
             self.img,
@@ -48,8 +70,19 @@ class PoseAnalyzer:
             box_thresh=0.5,
             keypoint_thresh=0.2,
         )
-        plt.savefig(f"{self.img_path.split('.')[0]}_angle{self.calc_spine_nose_angle(predicted_feature_coords)}.jpg")
-        plt.close()
+        img_path = self.img_path
+        angle = self.calc_spine_nose_angle(predicted_feature_coords)
+        if angle < MIN_GOOD_POSTURE_ANGLE:
+            plt.savefig(f"analyzed_imgs/{img_path.name.split('.')[0]}_angle{angle}.jpg")
+            plt.close()
+            with open("results.psv", "a") as f:
+                f.write(str(img_path.name) + "|" + str(angle) + "\n")
+            p = subprocess.Popen(["display", str(img_path)])
+            time.sleep(0.5)
+            p.kill()
+            img_path.rename(f"analyzed_imgs/{img_path.name}")
+        else:
+            os.remove(str(img_path))
 
     def predict_feature_coords(self) -> np.ndarray:
         """
@@ -79,7 +112,9 @@ class PoseAnalyzer:
         # human, so that the NMS process is faster.
 
         detector.reset_class(["person"], reuse_weights=["person"])
-        x, self.img = data.transforms.presets.ssd.load_test(self.img_path, short=512)
+        x, self.img = data.transforms.presets.ssd.load_test(
+            str(self.img_path), short=512
+        )
         print("Shape of pre-processed image:", x.shape)
 
         self.class_IDs, self.scores, self.bounding_boxes = detector(x)
@@ -94,11 +129,12 @@ class PoseAnalyzer:
                 return
         except:
             predicted_heatmap = pose_net(pose_input)
-            self.pred_coords_mxnet_ndarray, self.confidence = heatmap_to_coord(predicted_heatmap, upscale_bbox)
+            self.pred_coords_mxnet_ndarray, self.confidence = heatmap_to_coord(
+                predicted_heatmap, upscale_bbox
+            )
 
             # pred_coords is of type mxnet.ndarray.ndarray.NDArray
             return self.pred_coords_mxnet_ndarray.asnumpy()[0]
-
 
     @staticmethod
     def calc_angle_at_b(a: np.ndarray, b: np.ndarray, c: np.ndarray) -> int:
