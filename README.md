@@ -1,4 +1,5 @@
 Notes about the raspberry pi this is being run on:
+Model: Raspberry Pi 3B+
 
 pi@rpi:~ $ cat /etc/os-release 
 PRETTY_NAME="Debian GNU/Linux 11 (bullseye)"
