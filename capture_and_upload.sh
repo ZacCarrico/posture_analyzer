@@ -13,7 +13,7 @@ while true; do
     libcamera-still --width 432 --height 368 --output "$IMG_FILE" --nopreview --timeout 1 -v0
 
     # Upload to Google Cloud Storage
-    gsutil cp "$IMG_FILE" gs://pose_imgs/
+    gsutil cp "$IMG_FILE" gs://living_room_dogs/
 
     # Check if upload was successful before deleting
     if [ $? -eq 0 ]; then
